@@ -34,15 +34,21 @@ export default function DashboardPage() {
   async function handleCreate() {
     if (!newKeyName.trim()) return;
     setSaving(true);
-    const success = await createKey(newKeyName.trim(), newKeyType, newKeyValue.trim());
-    if (success) {
+    clearError();
+    const customKey = newKeyValue.trim();
+    const result = await createKey(
+      newKeyName.trim(),
+      newKeyType,
+      customKey.length > 0 ? customKey : undefined
+    );
+    if (result.ok) {
       setNewKeyName("");
       setNewKeyValue("");
       setNewKeyType("dev");
       setIsCreating(false);
       setNotification({ message: "API key created successfully", type: "success" });
     } else {
-      setNotification({ message: "Failed to create API key", type: "error" });
+      setNotification({ message: result.message, type: "error" });
     }
     setSaving(false);
   }
@@ -63,7 +69,7 @@ export default function DashboardPage() {
     const success = await deleteKey(id);
     if (success) {
       setDeleteConfirmId(null);
-      setNotification({ message: "API key deleted", type: "error" });
+      setNotification({ message: "API key deleted", type: "success" });
     } else {
       setNotification({ message: "Failed to delete API key", type: "error" });
     }

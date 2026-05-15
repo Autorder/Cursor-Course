@@ -1,54 +1,22 @@
+import { incrementApiKeyUsage, validateApiKey } from "@/lib/api-key-utils";
 import { summarizeReadme } from "@/lib/chain";
-import { supabase } from "@/lib/supabase";
+import { getRepoInfo } from "@/lib/github-utils";
 import { NextRequest, NextResponse } from "next/server";
 
-async function getReadmeContent(githubUrl: string): Promise<string> {
-  const match = githubUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
-  if (!match) {
-    throw new Error("Invalid GitHub URL");
-  }
-
-  const [, owner, repo] = match;
-  const repoName = repo.replace(/\.git$/, "");
-
-  const res = await fetch(
-    `https://api.github.com/repos/${owner}/${repoName}/readme`,
-    {
-      headers: {
-        Accept: "application/vnd.github.raw",
-        "User-Agent": "dandi-app",
-      },
-    }
-  );
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch README");
-  }
-
-  return res.text();
-}
-
 export async function POST(request: NextRequest) {
-  const apiKey = request.headers.get("x-api-key");
+  const apiKeyHeader = request.headers.get("x-api-key");
 
-  if (!apiKey?.trim()) {
+  const validated = await validateApiKey(apiKeyHeader ?? "");
+  if (!validated.ok) {
     return NextResponse.json(
-      { error: "API key is required" },
-      { status: 400 }
+      { error: validated.error },
+      { status: validated.status }
     );
   }
 
-  const { data, error } = await supabase
-    .from("api_keys")
-    .select("id")
-    .eq("key", apiKey.trim())
-    .single();
-
-  if (error || !data) {
-    return NextResponse.json(
-      { error: "Invalid API key" },
-      { status: 401 }
-    );
+  const rate = await incrementApiKeyUsage(validated.apiKey);
+  if (!rate.ok) {
+    return NextResponse.json({ error: rate.error }, { status: rate.status });
   }
 
   const body = await request.json();
@@ -62,10 +30,17 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const readmeContent = await getReadmeContent(githubUrl.trim());
-    const { summary, coolFacts } = await summarizeReadme(readmeContent);
+    const repoInfo = await getRepoInfo(githubUrl.trim());
+    const { summary, coolFacts } = await summarizeReadme(repoInfo.readmeContent);
 
-    return NextResponse.json({ summary, coolFacts });
+    return NextResponse.json({
+      summary,
+      coolFacts,
+      stars: repoInfo.stars,
+      latestVersion: repoInfo.latestVersion,
+      homepage: repoInfo.homepage,
+      license: repoInfo.license,
+    });
   } catch (e) {
     const message =
       e instanceof Error ? e.message : "Failed to summarize repository";

@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     .from("api_keys")
     .select("id, name, type")
     .eq("key", apiKey.trim())
-    .single();
+    .maybeSingle();
 
   if (error || !data) {
     return NextResponse.json(
