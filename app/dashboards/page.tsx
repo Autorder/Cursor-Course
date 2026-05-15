@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Notification from "@/app/components/notification";
+import SignOutButton from "@/app/components/sign-out-button";
 import Sidebar from "@/app/components/sidebar";
 import { useApiKeys } from "@/app/hooks/useApiKeys";
 
@@ -113,11 +114,12 @@ export default function DashboardPage() {
               <h1 className="text-2xl font-semibold text-zinc-900">Overview</h1>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <span className="flex items-center gap-1.5 text-sm text-emerald-600">
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
               Operational
             </span>
+            <SignOutButton />
           </div>
         </header>
 

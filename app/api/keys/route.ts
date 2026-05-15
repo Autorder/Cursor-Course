@@ -1,5 +1,14 @@
+import { getSession } from "@/lib/auth-session";
 import { supabase } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
+
+async function requireAuth() {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return null;
+}
 
 function generateKey(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -12,6 +21,9 @@ function generateKey(): string {
 }
 
 export async function GET() {
+  const unauthorized = await requireAuth();
+  if (unauthorized) return unauthorized;
+
   const { data, error } = await supabase
     .from("api_keys")
     .select("*")
@@ -26,6 +38,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const unauthorized = await requireAuth();
+  if (unauthorized) return unauthorized;
+
   const body = await request.json();
   const { name, type, key } = body;
 
@@ -54,6 +69,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const unauthorized = await requireAuth();
+  if (unauthorized) return unauthorized;
+
   const body = await request.json();
   const { id, name } = body;
 
@@ -79,6 +97,9 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const unauthorized = await requireAuth();
+  if (unauthorized) return unauthorized;
+
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
 
