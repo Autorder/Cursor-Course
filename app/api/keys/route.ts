@@ -1,14 +1,6 @@
-import { getSession } from "@/lib/auth-session";
+import { getCurrentUserId } from "@/lib/current-user";
 import { supabase } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
-
-async function requireAuth() {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  return null;
-}
 
 function generateKey(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -20,13 +12,15 @@ function generateKey(): string {
   return prefix + result;
 }
 
+/** GET /api/keys — list keys for the logged-in user */
 export async function GET() {
-  const unauthorized = await requireAuth();
-  if (unauthorized) return unauthorized;
+  const user = await getCurrentUserId();
+  if (user instanceof NextResponse) return user;
 
   const { data, error } = await supabase
     .from("api_keys")
     .select("*")
+    .eq("user_id", user.userId)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -37,9 +31,10 @@ export async function GET() {
   return NextResponse.json(data);
 }
 
+/** POST /api/keys — create a key for the logged-in user */
 export async function POST(request: NextRequest) {
-  const unauthorized = await requireAuth();
-  if (unauthorized) return unauthorized;
+  const user = await getCurrentUserId();
+  if (user instanceof NextResponse) return user;
 
   const body = await request.json();
   const { name, type, key } = body;
@@ -57,64 +52,21 @@ export async function POST(request: NextRequest) {
       type: type || "dev",
       key: apiKey,
       usage: 0,
+      user_id: user.userId,
     })
     .select()
     .single();
 
   if (error) {
+    console.error("[POST /api/keys] Supabase error:", error);
+    if (error.code === "23505") {
+      return NextResponse.json(
+        { error: "This API key value already exists. Leave the field blank to auto-generate." },
+        { status: 409 }
+      );
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   return NextResponse.json(data, { status: 201 });
-}
-
-export async function PUT(request: NextRequest) {
-  const unauthorized = await requireAuth();
-  if (unauthorized) return unauthorized;
-
-  const body = await request.json();
-  const { id, name } = body;
-
-  if (!id) {
-    return NextResponse.json({ error: "ID is required" }, { status: 400 });
-  }
-  if (!name?.trim()) {
-    return NextResponse.json({ error: "Name is required" }, { status: 400 });
-  }
-
-  const { data, error } = await supabase
-    .from("api_keys")
-    .update({ name: name.trim() })
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json(data);
-}
-
-export async function DELETE(request: NextRequest) {
-  const unauthorized = await requireAuth();
-  if (unauthorized) return unauthorized;
-
-  const { searchParams } = new URL(request.url);
-  const id = searchParams.get("id");
-
-  if (!id) {
-    return NextResponse.json({ error: "ID is required" }, { status: 400 });
-  }
-
-  const { error } = await supabase
-    .from("api_keys")
-    .delete()
-    .eq("id", id);
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ success: true });
 }

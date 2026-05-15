@@ -15,10 +15,24 @@ export interface UseApiKeysReturn {
   loading: boolean;
   error: string | null;
   clearError: () => void;
-  createKey: (name: string, type: string, key?: string) => Promise<boolean>;
+  createKey: (
+    name: string,
+    type: string,
+    key?: string
+  ) => Promise<{ ok: true } | { ok: false; message: string }>;
   updateKey: (id: string, name: string) => Promise<boolean>;
   deleteKey: (id: string) => Promise<boolean>;
   copyToClipboard: (key: string) => Promise<void>;
+}
+
+async function apiErrorMessage(res: Response, fallback: string): Promise<string> {
+  try {
+    const body = await res.json();
+    if (typeof body?.error === "string") return body.error;
+  } catch {
+    /* ignore */
+  }
+  return fallback;
 }
 
 export function useApiKeys(): UseApiKeysReturn {
@@ -30,7 +44,7 @@ export function useApiKeys(): UseApiKeysReturn {
     try {
       setError(null);
       const res = await fetch("/api/keys");
-      if (!res.ok) throw new Error("Failed to fetch API keys");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to fetch API keys"));
       const data = await res.json();
       setKeys(data);
     } catch (err) {
@@ -44,7 +58,11 @@ export function useApiKeys(): UseApiKeysReturn {
     fetchKeys();
   }, [fetchKeys]);
 
-  async function createKey(name: string, type: string, key?: string): Promise<boolean> {
+  async function createKey(
+    name: string,
+    type: string,
+    key?: string
+  ): Promise<{ ok: true } | { ok: false; message: string }> {
     try {
       const res = await fetch("/api/keys", {
         method: "POST",
@@ -52,25 +70,27 @@ export function useApiKeys(): UseApiKeysReturn {
         body: JSON.stringify({ name, type, key: key || undefined }),
       });
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to create key");
+        const message = await apiErrorMessage(res, "Failed to create key");
+        setError(message);
+        return { ok: false, message };
       }
       await fetchKeys();
-      return true;
+      return { ok: true };
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create key");
-      return false;
+      const message = err instanceof Error ? err.message : "Failed to create key";
+      setError(message);
+      return { ok: false, message };
     }
   }
 
   async function updateKey(id: string, name: string): Promise<boolean> {
     try {
-      const res = await fetch("/api/keys", {
+      const res = await fetch(`/api/keys/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, name }),
+        body: JSON.stringify({ name }),
       });
-      if (!res.ok) throw new Error("Failed to update key");
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to update key"));
       await fetchKeys();
       return true;
     } catch (err) {
@@ -81,8 +101,8 @@ export function useApiKeys(): UseApiKeysReturn {
 
   async function deleteKey(id: string): Promise<boolean> {
     try {
-      const res = await fetch(`/api/keys?id=${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete key");
+      const res = await fetch(`/api/keys/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(await apiErrorMessage(res, "Failed to delete key"));
       await fetchKeys();
       return true;
     } catch (err) {
