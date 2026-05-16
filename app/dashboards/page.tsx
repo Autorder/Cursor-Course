@@ -19,6 +19,7 @@ export default function DashboardPage() {
   const [newKeyName, setNewKeyName] = useState("");
   const [newKeyValue, setNewKeyValue] = useState("");
   const [newKeyType, setNewKeyType] = useState("dev");
+  const [newKeyLimit, setNewKeyLimit] = useState("200");
   const [editName, setEditName] = useState("");
   const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -30,21 +31,25 @@ export default function DashboardPage() {
   const usageUsed = keys.reduce((sum, k) => sum + k.usage, 0);
   const usageTotal = 1000;
   const usagePercent = Math.min((usageUsed / usageTotal) * 100, 100);
+  const parsedNewKeyLimit = Number(newKeyLimit);
+  const isNewKeyLimitValid = Number.isInteger(parsedNewKeyLimit) && parsedNewKeyLimit > 0;
 
   async function handleCreate() {
-    if (!newKeyName.trim()) return;
+    if (!newKeyName.trim() || !isNewKeyLimitValid) return;
     setSaving(true);
     clearError();
     const customKey = newKeyValue.trim();
     const result = await createKey(
       newKeyName.trim(),
       newKeyType,
+      parsedNewKeyLimit,
       customKey.length > 0 ? customKey : undefined
     );
     if (result.ok) {
       setNewKeyName("");
       setNewKeyValue("");
       setNewKeyType("dev");
+      setNewKeyLimit("200");
       setIsCreating(false);
       setNotification({ message: "API key created successfully", type: "success" });
     } else {
@@ -191,7 +196,7 @@ export default function DashboardPage() {
                 <p className="text-xs text-zinc-500 mb-4">
                   Enter a name and optionally provide your own key, or leave blank to auto-generate.
                 </p>
-                <div className="grid grid-cols-[1fr_auto] gap-3 mb-3">
+                <div className="grid grid-cols-[1fr_auto_auto] gap-3 mb-3">
                   <div>
                     <label className="block text-xs font-medium text-zinc-600 mb-1">Name</label>
                     <input
@@ -214,6 +219,17 @@ export default function DashboardPage() {
                       <option value="prod">prod</option>
                     </select>
                   </div>
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-600 mb-1">Limit</label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={newKeyLimit}
+                      onChange={(e) => setNewKeyLimit(e.target.value)}
+                      className="h-[38px] w-24 rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900 focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-100"
+                    />
+                  </div>
                 </div>
                 <div className="mb-4">
                   <label className="block text-xs font-medium text-zinc-600 mb-1">
@@ -231,7 +247,7 @@ export default function DashboardPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={handleCreate}
-                    disabled={!newKeyName.trim() || saving}
+                    disabled={!newKeyName.trim() || !isNewKeyLimitValid || saving}
                     className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     {saving ? "Saving..." : "Save API Key"}
@@ -241,6 +257,7 @@ export default function DashboardPage() {
                       setIsCreating(false);
                       setNewKeyName("");
                       setNewKeyValue("");
+                      setNewKeyLimit("200");
                     }}
                     className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition-colors"
                   >
@@ -307,7 +324,7 @@ export default function DashboardPage() {
                           <span className="text-sm text-zinc-500">{apiKey.type}</span>
                         </td>
                         <td className="px-5 py-3.5">
-                          <span className="text-sm text-zinc-500">{apiKey.usage}</span>
+                          <span className="text-sm text-zinc-500">{apiKey.usage} / {apiKey.limit}</span>
                         </td>
                         <td className="px-5 py-3.5">
                           <code className="text-sm font-mono text-zinc-500">

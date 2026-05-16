@@ -37,10 +37,15 @@ export async function POST(request: NextRequest) {
   if (user instanceof NextResponse) return user;
 
   const body = await request.json();
-  const { name, type, key } = body;
+  const { name, type, key, limit } = body;
 
   if (!name?.trim()) {
     return NextResponse.json({ error: "Name is required" }, { status: 400 });
+  }
+
+  const parsedLimit = limit === undefined ? 200 : Number(limit);
+  if (!Number.isInteger(parsedLimit) || parsedLimit <= 0) {
+    return NextResponse.json({ error: "Limit must be a positive integer" }, { status: 400 });
   }
 
   const apiKey = key?.trim() || generateKey();
@@ -52,6 +57,7 @@ export async function POST(request: NextRequest) {
       type: type || "dev",
       key: apiKey,
       usage: 0,
+      limit: parsedLimit,
       user_id: user.userId,
     })
     .select()

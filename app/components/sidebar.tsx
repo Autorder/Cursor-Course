@@ -1,14 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
+import { signOut, useSession } from "next-auth/react";
 
 const NAV_ITEMS = [
   { label: "Overview", icon: "home", href: "/dashboards", active: true },
   { label: "API Playground", icon: "play", href: "/playground" },
-  { label: "Use Cases", icon: "folder", href: "#" },
   { label: "Billing", icon: "credit-card", href: "#" },
-  { label: "Settings", icon: "settings", href: "#" },
-  { label: "Configuration", icon: "sliders", href: "#" },
   { label: "Documentation", icon: "book", href: "#", external: true },
 ];
 
@@ -50,13 +49,16 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isOpen }: SidebarProps) {
+  const { data: session } = useSession();
+  const user = session?.user;
+
   return (
     <aside
       className={`shrink-0 border-r border-zinc-200 bg-white flex flex-col transition-all duration-300 ease-in-out overflow-hidden ${
         isOpen ? "w-60" : "w-0 border-r-0"
       }`}
     >
-      <div className="w-60">
+      <div className="w-60 min-h-screen flex flex-col">
         <div className="px-5 py-5 border-b border-zinc-100">
           <Link href="/" className="flex items-center gap-2.5">
             <div className="h-8 w-8 rounded-lg bg-zinc-900 flex items-center justify-center">
@@ -91,6 +93,39 @@ export default function Sidebar({ isOpen }: SidebarProps) {
             </Link>
           ))}
         </nav>
+
+        {user && (
+          <div className="border-t border-zinc-100 p-4">
+            <div className="mb-3 flex items-center gap-3">
+              {user.image ? (
+                <Image
+                  src={user.image}
+                  alt={user.name ?? "User profile"}
+                  width={36}
+                  height={36}
+                  className="rounded-full"
+                />
+              ) : (
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-900 text-sm font-semibold text-white">
+                  {user.name?.charAt(0).toUpperCase() ?? "U"}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-zinc-900">
+                  {user.name ?? "Signed in user"}
+                </p>
+                <p className="truncate text-xs text-zinc-500">{user.email}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => signOut({ callbackUrl: "/" })}
+              className="w-full rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+            >
+              Logout
+            </button>
+          </div>
+        )}
       </div>
     </aside>
   );

@@ -7,6 +7,7 @@ export interface ApiKey {
   name: string;
   type: string;
   usage: number;
+  limit: number;
   key: string;
 }
 
@@ -18,6 +19,7 @@ export interface UseApiKeysReturn {
   createKey: (
     name: string,
     type: string,
+    limit: number,
     key?: string
   ) => Promise<{ ok: true } | { ok: false; message: string }>;
   updateKey: (id: string, name: string) => Promise<boolean>;
@@ -61,13 +63,14 @@ export function useApiKeys(): UseApiKeysReturn {
   async function createKey(
     name: string,
     type: string,
+    limit: number,
     key?: string
   ): Promise<{ ok: true } | { ok: false; message: string }> {
     try {
       const res = await fetch("/api/keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, type, key: key || undefined }),
+        body: JSON.stringify({ name, type, limit, key: key || undefined }),
       });
       if (!res.ok) {
         const message = await apiErrorMessage(res, "Failed to create key");
